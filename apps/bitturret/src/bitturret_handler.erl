@@ -47,7 +47,7 @@ code_change(_OldVsn, State, _Extra) ->
   { ok, State }.
 
 handle_info( {udp, Socket, IP, Port, Msg}, State ) ->
-  bitturret_worker:handle({Socket, IP, Port}, Msg),
+  spawn(bitturret_worker, handle, [{Socket, IP, Port}, Msg]),
   inet:setopts(State#state.socket, [{active, once}]),
   { noreply, State }.
 
