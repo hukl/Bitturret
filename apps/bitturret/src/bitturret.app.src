@@ -9,5 +9,7 @@
                   sasl
                  ]},
   {mod, {bitturret_app, []}},
-  {env, []}
+  {env, [
+    {port, 8080}
+  ]}
  ]}.
