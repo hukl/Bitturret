@@ -1,0 +1,2 @@
+- purge peers when they stop / or after timing out
+- handle scrapes
