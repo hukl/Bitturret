@@ -30,8 +30,8 @@ stop() -> gen_server:cast(?MODULE, stop).
 %% ===================================================================
 
 init([]) ->
-    {ok, Port}        = application:get_env(port),
-    {ok, Socket}    = gen_udp:open(Port, [binary, {active, once}]),
+    {ok, Port}   = application:get_env(port),
+    {ok, Socket} = gen_udp:open(Port, [binary, {active, once}]),
     { ok, #state{ socket = Socket } }.
 
 handle_call( _Msg, _From, State ) ->
