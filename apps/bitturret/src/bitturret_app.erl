@@ -10,7 +10,7 @@
 %% ===================================================================
 
 start(_StartType, _StartArgs) ->
-  bitturret_sup:start_link().
+    bitturret_sup:start_link().
 
 stop(_State) ->
-  ok.
+    ok.

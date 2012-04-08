@@ -18,10 +18,10 @@
 %% ===================================================================
 
 start() ->
-  gen_server:start( {local, ?MODULE}, ?MODULE, [], []).
+    gen_server:start( {local, ?MODULE}, ?MODULE, [], []).
 
 start_link() ->
-  gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 stop() -> gen_server:cast(?MODULE, stop).
 
@@ -30,29 +30,29 @@ stop() -> gen_server:cast(?MODULE, stop).
 %% ===================================================================
 
 init([]) ->
-  {ok, Port}    = application:get_env(port),
-  {ok, Socket}  = gen_udp:open(Port, [binary, {active, once}]),
-  { ok, #state{ socket = Socket } }.
+    {ok, Port}        = application:get_env(port),
+    {ok, Socket}    = gen_udp:open(Port, [binary, {active, once}]),
+    { ok, #state{ socket = Socket } }.
 
 handle_call( _Msg, _From, State ) ->
-  { reply, ok, State }.
+    { reply, ok, State }.
 
 handle_cast( stop, State ) ->
-  { stop, normal, State };
+    { stop, normal, State };
 
 handle_cast( _Msg, State ) ->
-  { stop, normal, State }.
+    { stop, normal, State }.
 
 code_change(_OldVsn, State, _Extra) ->
-  { ok, State }.
+    { ok, State }.
 
 handle_info( {udp, Socket, IP, Port, Msg}, State ) ->
-  spawn(bitturret_worker, handle, [{Socket, IP, Port}, Msg]),
-  inet:setopts(State#state.socket, [{active, once}]),
-  { noreply, State }.
+    spawn(bitturret_worker, handle, [{Socket, IP, Port}, Msg]),
+    inet:setopts(State#state.socket, [{active, once}]),
+    { noreply, State }.
 
 terminate( _Reason, _State ) ->
-  whatever.
+    whatever.
 
 %% ===================================================================
 %% Public API

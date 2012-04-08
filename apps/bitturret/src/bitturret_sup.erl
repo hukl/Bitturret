@@ -23,8 +23,8 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
-  Children = [?CHILD(bitturret_handler, worker)],
+    Children = [?CHILD(bitturret_handler, worker)],
 
-  RestartStrategy = {one_for_one, 0, 1},
+    RestartStrategy = {one_for_one, 0, 1},
 
-  {ok, {RestartStrategy, Children}}.
+    {ok, {RestartStrategy, Children}}.
