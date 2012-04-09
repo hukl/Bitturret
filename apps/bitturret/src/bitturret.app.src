@@ -44,6 +44,6 @@
     % configuration file.
     {env, [
         % FIXME - Replace with proper port.
-        {port, 8080}
+        {port, 6969}
     ]}
 ]}.

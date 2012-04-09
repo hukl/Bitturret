@@ -30,8 +30,9 @@ stop() -> gen_server:cast(?MODULE, stop).
 %% ===================================================================
 
 init([]) ->
+    ets:new(peers, [public, named_table, bag]),
     {ok, Port}   = application:get_env(port),
-    {ok, Socket} = gen_udp:open(Port, [binary, {active, once}]),
+    {ok, Socket} = gen_udp:open(Port, [binary, {ip, {10,0,3,9}}, {active, once}]),
     { ok, #state{ socket = Socket } }.
 
 handle_call( _Msg, _From, State ) ->

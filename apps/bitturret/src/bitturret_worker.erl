@@ -13,7 +13,7 @@ handle(From, <<ConnectionID:64/big, 0:32/big, TransactionID:32/big>>) ->
     send_response( From, Response );
 
 % Matches announce requests by patternmatching on the 1
-handle(From,
+handle(From = {_, PeerIP, PeerPort},
         <<
             ?CONNECTION_ID:64/big, % Make sure the client reads tracker response
             1:32/big,              % This is the action flag
@@ -24,25 +24,42 @@ handle(From,
             Left:64/big,
             Uploaded:64/big,
             Event:32/big,
-            IPaddress:32/big,
+            _PeerIP:32/big,
             Key:32/big,
-            NumWait:32/big,
-            Port:16/big
+            NumWant:32/big,
+            _PeerPort:16/big,
+            _Rest/binary
         >>) ->
 
-    error_logger:info_msg("Announce Request"),
-    % error_logger:info_msg("ConnectionID: ~p~n", [ConnectionID]),
+    case Event of
+        0 ->
+            error_logger:info_msg("Announce Request: Regular");
+        1 ->
+            error_logger:info_msg("Announce Request: Completed");
+        2 ->
+            {_, RealPeerIP, _} = From,
+            error_logger:info_msg("Announce Request: Started"),
+            error_logger:info_msg("PeerIP ~p~n", [RealPeerIP]),
+            ets:insert(peers, {InfoHash, ip_to_int(PeerIP), PeerPort, leecher});
+        3 ->
+            error_logger:info_msg("Announce Request: Stopped")
+    end,
 
-    Peers = << <<IP:32/big,Port:16/big>> || {IP,Port} <- [{3261057657, 51413}] >>,
-    Response = <<1:32/big, TransactionID:32/big, 600:32/big, 10:32/big, 5:32/big, Peers/binary>>,
+    Peers    = ets:match(peers, {'_','$1','$2','_'} ),
+    PeersBin = << <<IP:32/big,Port:16/big>> || [IP,Port] <- Peers >>,
+    error_logger:info_msg("Peers: ~p~n", [PeersBin]),
+    Response = <<1:32/big, TransactionID:32/big, 2160:32/big, 10:32/big, 5:32/big, PeersBin/binary>>,
     send_response(From, Response);
 
 % Matches scrape requests by patternmatching on the 2
 handle(From, <<?CONNECTION_ID:64/big, 2:32/big, TransactionID:32/big, Rest/binary>>) ->
-    error_logger:info_msg("Scrape Request: ~p~n");
+    error_logger:info_msg("Scrape Request: ~n"),
+    Resp = <<2:32/big, TransactionID:32/big, 5:32/big, 3:32/big, 10:32/big>>;
 
 handle(From, Msg) ->
     error_logger:info_msg("Something else: ~p~n", [Msg]).
 
 send_response({Socket, IP, Port}, Response) ->
     gen_udp:send(Socket, IP, Port, Response).
+
+ip_to_int({A,B,C,D}) -> (A*16777216)+(B*65536)+(C*256)+(D).
