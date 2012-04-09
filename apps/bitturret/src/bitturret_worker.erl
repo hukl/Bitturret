@@ -13,7 +13,7 @@ handle(From, <<ConnectionID:64/big, 0:32/big, TransactionID:32/big>>) ->
     send_response( From, Response );
 
 % Matches announce requests by patternmatching on the 1
-handle(From = {_, PeerIP, PeerPort},
+handle(From = {_, PeerIP, _},
         <<
             ?CONNECTION_ID:64/big, % Make sure the client reads tracker response
             1:32/big,              % This is the action flag
@@ -27,7 +27,7 @@ handle(From = {_, PeerIP, PeerPort},
             _PeerIP:32/big,         % Ignored; use IP and Port from Socket
             Key:32/big,
             NumWant:32/big,
-            _PeerPort:16/big,       % Ignored; use IP and Port from Socket
+            PeerPort:16/big,
             _Rest/binary >>         % Some clients sent some padding bits
         ) ->
 
@@ -37,14 +37,17 @@ handle(From = {_, PeerIP, PeerPort},
         1 ->
             error_logger:info_msg("Announce Request: Completed");
         2 ->
-            {_, RealPeerIP, _} = From,
             error_logger:info_msg("Announce Request: Started"),
             ets:insert(peers, {InfoHash, ip_to_int(PeerIP), PeerPort, leecher});
         3 ->
-            error_logger:info_msg("Announce Request: Stopped")
+            error_logger:info_msg("Announce Request: Stopped"),
+            ets:match_delete(peers, {InfoHash, ip_to_int(PeerIP), PeerPort, '_'})
     end,
 
-    Peers    = ets:match(peers, {'_','$1','$2','_'} ),
+    Peers    = ets:match(peers, {InfoHash,'$1','$2','_'} ),
+
+    error_logger:info_msg("Peers: ~p~n", [Peers]),
+
     PeersBin = << <<IP:32/big,Port:16/big>> || [IP,Port] <- Peers >>,
     Response = <<1:32/big, TransactionID:32/big, 2160:32/big, 10:32/big, 5:32/big, PeersBin/binary>>,
     send_response(From, Response);
@@ -52,7 +55,7 @@ handle(From = {_, PeerIP, PeerPort},
 % Matches scrape requests by patternmatching on the 2
 handle(From, <<?CONNECTION_ID:64/big, 2:32/big, TransactionID:32/big, Rest/binary>>) ->
     error_logger:info_msg("Scrape Request: ~n"),
-    Resp = <<2:32/big, TransactionID:32/big, 5:32/big, 3:32/big, 10:32/big>>;
+    Resp = <<2:32/big, TransactionID:32/big, 1:32/big, 3:32/big, 10:32/big>>;
 
 handle(From, Msg) ->
     error_logger:info_msg("Something else: ~p~n", [Msg]).
