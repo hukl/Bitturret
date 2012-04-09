@@ -18,18 +18,18 @@ handle(From = {_, PeerIP, PeerPort},
             ?CONNECTION_ID:64/big, % Make sure the client reads tracker response
             1:32/big,              % This is the action flag
             TransactionID:32/big,
-            InfoHash:160/bitstring,
+            InfoHash:160/bitstring,% The torrent Hash
             PeerID:160/bitstring,
             Downloaded:64/big,
             Left:64/big,
             Uploaded:64/big,
             Event:32/big,
-            _PeerIP:32/big,
+            _PeerIP:32/big,         % Ignored; use IP and Port from Socket
             Key:32/big,
             NumWant:32/big,
-            _PeerPort:16/big,
-            _Rest/binary
-        >>) ->
+            _PeerPort:16/big,       % Ignored; use IP and Port from Socket
+            _Rest/binary >>         % Some clients sent some padding bits
+        ) ->
 
     case Event of
         0 ->
@@ -39,7 +39,6 @@ handle(From = {_, PeerIP, PeerPort},
         2 ->
             {_, RealPeerIP, _} = From,
             error_logger:info_msg("Announce Request: Started"),
-            error_logger:info_msg("PeerIP ~p~n", [RealPeerIP]),
             ets:insert(peers, {InfoHash, ip_to_int(PeerIP), PeerPort, leecher});
         3 ->
             error_logger:info_msg("Announce Request: Stopped")
@@ -47,7 +46,6 @@ handle(From = {_, PeerIP, PeerPort},
 
     Peers    = ets:match(peers, {'_','$1','$2','_'} ),
     PeersBin = << <<IP:32/big,Port:16/big>> || [IP,Port] <- Peers >>,
-    error_logger:info_msg("Peers: ~p~n", [PeersBin]),
     Response = <<1:32/big, TransactionID:32/big, 2160:32/big, 10:32/big, 5:32/big, PeersBin/binary>>,
     send_response(From, Response);
 
