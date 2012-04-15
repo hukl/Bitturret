@@ -41,7 +41,8 @@ handle(From = {_, PeerIP, _},
             ets:insert(peers, {InfoHash, ip_to_int(PeerIP), PeerPort, leecher});
         3 ->
             % error_logger:info_msg("Announce Request: Stopped"),
-            ets:match_delete(peers, {InfoHash, ip_to_int(PeerIP), PeerPort, '_'})
+            ets:match_delete(peers, {InfoHash, ip_to_int(PeerIP), PeerPort, '_'});
+        _ -> ok
     end,
 
     Peers    = ets:match(peers, {InfoHash,'$1','$2','_'} ),
