@@ -6,7 +6,7 @@
 
 
 % Matches connection requests by patternmatching on the 0
-handle(From, <<ConnectionID:64/big, 0:32/big, TransactionID:32/big>>) ->
+handle( From, <<ConnectionID:64/big, 0:32/big, TransactionID:32/big, _Rest/binary>>) ->
     error_logger:info_msg("Connection Request"),
     error_logger:info_msg("C: ~p A: ~p T: ~p~n", [ConnectionID, 0, TransactionID]),
     Response = <<0:32/big, TransactionID:32/big, ?CONNECTION_ID:64/big>>,
