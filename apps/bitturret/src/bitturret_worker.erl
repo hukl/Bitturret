@@ -57,7 +57,7 @@ handle(From, <<?CONNECTION_ID:64/big, 2:32/big, TransactionID:32/big, Rest/binar
     % error_logger:info_msg("Scrape Request: ~n"),
     Resp = <<2:32/big, TransactionID:32/big, 1:32/big, 3:32/big, 10:32/big>>;
 
-handle(From, Msg) ->
+handle(From, Msg) -> ok.
     % error_logger:info_msg("Something else: ~p~n", [Msg]).
 
 send_response({Socket, IP, Port}, Response) ->
