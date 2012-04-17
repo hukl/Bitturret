@@ -1,4 +1,4 @@
--module (with_buffer).
+-module (buffer_passive).
 -compile (export_all).
 
 -define (MAX_BUFLEN, 100).
