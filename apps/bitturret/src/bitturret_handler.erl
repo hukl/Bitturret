@@ -30,9 +30,9 @@ stop() -> gen_server:cast(?MODULE, stop).
 %% ===================================================================
 
 init([]) ->
-    ets:new(peers, [public, named_table, bag]),
     {ok, Port}   = application:get_env(port),
     {ok, Socket} = gen_udp:open(Port, [binary, {ip, {127,0,0,1}}, {active, once}]),
+    initialize_workers(0),
     { ok, #state{ socket = Socket } }.
 
 handle_call( _Msg, _From, State ) ->
@@ -47,8 +47,8 @@ handle_cast( _Msg, State ) ->
 code_change(_OldVsn, State, _Extra) ->
     { ok, State }.
 
-handle_info( {udp, Socket, IP, Port, Msg}, State ) ->
-    spawn(bitturret_worker, handle, [{Socket, IP, Port}, Msg]),
+handle_info( {udp, Socket, IP = {_,_,Shard,_}, Port, Msg}, State ) ->
+    erlang:list_to_atom(integer_to_list(Shard)) ! [{Socket, IP, Port}, Msg],
     loop(State#state.socket, 0),
     { noreply, State }.
 
@@ -60,11 +60,22 @@ terminate( _Reason, _State ) ->
 %% ===================================================================
 
 loop(Socket, Count) ->
-    % case (Count rem 10000) of
-    %     0 -> error_logger:info_msg("Count: ~p~n", [Count]);
-    %     _ -> ignore
-    % end,
+    case (Count rem 100000) of
+        0 -> error_logger:info_msg("Count: ~p~n", [Count]);
+        _ -> ignore
+    end,
 
-    {ok, Msg} = gen_udp:recv(Socket, 0),
-    % spawn(bitturret_worker, handle, [{Socket, IP, Port}, Msg]),
+    {ok, {IP = {_,_,Shard,_}, Port, Msg}} = gen_udp:recv(Socket, 0),
+    erlang:list_to_atom(integer_to_list(Shard)) ! [{Socket, IP, Port}, Msg],
     loop(Socket, Count + 1).
+
+initialize_workers(256) -> ok;
+
+initialize_workers(Count) ->
+    Pid  = spawn( bitturret_worker, loop, [] ),
+    Name = erlang:list_to_atom(integer_to_list(Count)),
+    register(Name, Pid),
+    initialize_workers( Count + 1 ).
+
+
+

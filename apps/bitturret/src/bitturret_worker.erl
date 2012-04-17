@@ -2,8 +2,14 @@
 
 -include("bitturret.hrl").
 
--export([handle/2]).
+-export([loop/0]).
 
+
+loop() ->
+    receive
+        [From, Msg] -> handle(From, Msg),
+        loop()
+    end.
 
 % Matches connection requests by patternmatching on the 0
 handle( From, <<ConnectionID:64/big, 0:32/big, TransactionID:32/big, _Rest/binary>>) ->
@@ -31,24 +37,7 @@ handle(From = {_, PeerIP, _},
             _Rest/binary >>         % Some clients sent some padding bits
         ) ->
 
-    case Event of
-        0 ->
-            error_logger:info_msg("Announce Request: Regular");
-        1 ->
-            error_logger:info_msg("Announce Request: Completed");
-        2 ->
-            %error_logger:info_msg("Announce Request: Started"),
-            ets:insert(peers, {InfoHash, ip_to_int(PeerIP), PeerPort, leecher});
-        3 ->
-            error_logger:info_msg("Announce Request: Stopped"),
-            ets:match_delete(peers, {InfoHash, ip_to_int(PeerIP), PeerPort, '_'});
-        _ -> ok
-    end,
-
-    Peers    = ets:match(peers, {InfoHash,'$1','$2','_'} ),
-
-    % error_logger:info_msg("Peers: ~p~n", [Peers]),
-
+    Peers = [],
     PeersBin = << <<IP:32/big,Port:16/big>> || [IP,Port] <- Peers >>,
     Response = <<1:32/big, TransactionID:32/big, 2160:32/big, 10:32/big, 5:32/big, PeersBin/binary>>,
     send_response(From, Response);
@@ -62,6 +51,7 @@ handle(From, Msg) ->
     error_logger:info_msg("Something else: ~p~n", [Msg]).
 
 send_response({Socket, IP, Port}, Response) ->
-    gen_udp:send(Socket, IP, Port, Response).
+    % gen_udp:send(Socket, IP, Port, Response).
+    ok.
 
 ip_to_int({A,B,C,D}) -> (A*16777216)+(B*65536)+(C*256)+(D).
