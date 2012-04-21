@@ -1,6 +1,6 @@
 {application, bitturret, [
     % A very short description of your application.
-    {description, "Bitturret Bittorrent Tracker"},
+    {description, "Bitturret UDP/HTTP Torrent Tracker"},
 
     % Pull the app version number from git.
     {vsn, git},
