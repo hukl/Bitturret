@@ -18,7 +18,7 @@ start(LocalIp, LocalPort, RemoteIp, RemotePort, PacketsPerSec) ->
 
 loop_send(Socket, RemoteIp, RemotePort, PacketsPerSec) ->
     {Dur, _} = timer:tc(fun() ->
-        times(NumPackets, fun() ->
+        times(PacketsPerSec, fun() ->
             gen_udp:send(Socket, RemoteIp, RemotePort, ?MSG)
         end)
     end),
