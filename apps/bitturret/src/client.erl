@@ -22,7 +22,7 @@ send(Socket, RemoteIp, NumPackets) ->
     SleepDur = erlang:trunc(1000 - (Dur / 1000)),
     if
         SleepDur < 0 ->
-            throw({error, lame_client});
+            throw({error, slow_client});
         true ->
             timer:sleep(SleepDur),
             send(Socket, RemoteIp, NumPackets)
