@@ -7,16 +7,19 @@
       99,102,111,110,56,52,54,106,107,103,108,0,0,0,0,0,0,0,0,0,0,0,0,6,26,128,
       0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,49,123,193,195,0,0,0,80,233,194>>).
 
-start(LocalIp, LocalPort, RemoteIp, NumPackets) ->
-    {ok, Socket} = gen_udp:open(LocalPort, [binary, {ip, LocalIp}, {active, false}]),
-    send(Socket, RemoteIp, NumPackets).
+start(LocalIp, LocalPort, RemoteIp, RemotePort, PacketsPerSec) ->
+    {ok, Socket} = gen_udp:open(LocalPort, [
+        binary,
+        {ip, LocalIp},
+        {active, false}
+    ]),
+    loop_send(Socket, RemoteIp, RemotePort, PacketsPerSec).
 
 
-
-send(Socket, RemoteIp, NumPackets) ->
+loop_send(Socket, RemoteIp, RemotePort, PacketsPerSec) ->
     {Dur, _} = timer:tc(fun() ->
         times(NumPackets, fun() ->
-            gen_udp:send(Socket, RemoteIp, 1259, ?MSG)
+            gen_udp:send(Socket, RemoteIp, RemotePort, ?MSG)
         end)
     end),
     SleepDur = erlang:trunc(1000 - (Dur / 1000)),
@@ -25,7 +28,7 @@ send(Socket, RemoteIp, NumPackets) ->
             throw({error, slow_client});
         true ->
             timer:sleep(SleepDur),
-            send(Socket, RemoteIp, NumPackets)
+            loop_send(Socket, RemoteIp, RemotePort, PacketsPerSec)
     end.
 
 
