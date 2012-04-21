@@ -56,7 +56,7 @@ buffer_loop(Buflen, Buffer) ->
     receive
         Packet ->
             % Append the message to the current buffer, be it new or old.
-            buffer_loop(Buflen + 1, Buffer ++ [Packet])
+            buffer_loop(Buflen + 1, [Packet|Buffer])
     after
         % Replace with sensible value!
         1000 ->
