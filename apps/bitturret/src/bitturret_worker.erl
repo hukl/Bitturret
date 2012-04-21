@@ -1,57 +1,77 @@
--module(bitturret_worker).
+-module (bitturret_worker).
+-export ([handle/1]).
 
--include("bitturret.hrl").
+% Connection id for testing purposes.
+-define(CONN_ID, 890692333042557000).
 
--export([loop/0]).
 
 
-loop() ->
-    receive
-        [From, Msg] -> handle(From, Msg),
-        loop()
-    end.
+% Pre-match on udp messages.
+handle({udp, Socket, FromIP, InPortNo, Packet}) ->
+    Response = handle_packet(Packet),
+    gen_udp:send(Socket, FromIP, InPortNo, Response);
 
-% Matches connection requests by patternmatching on the 0
-handle( From, <<ConnectionID:64/big, 0:32/big, TransactionID:32/big, _Rest/binary>>) ->
-    error_logger:info_msg("Connection Request"),
-    % error_logger:info_msg("C: ~p A: ~p T: ~p~n", [ConnectionID, 0, TransactionID]),
-    Response = <<0:32/big, TransactionID:32/big, ?CONNECTION_ID:64/big>>,
-    send_response( From, Response );
 
-% Matches announce requests by patternmatching on the 1
-handle(From = {_, PeerIP, _},
+% Handle errors bubbling up.
+handle(Error = {error, _}) ->
+    % FIXME - Proper error handling required!
+    acceptor ! Error;
+
+
+% Ignore any other message.
+handle(_Message) -> ignored.
+
+
+
+% Handle announce requests.
+handle_packet(
         <<
-            ?CONNECTION_ID:64/big, % Make sure the client reads tracker response
-            1:32/big,              % This is the action flag
+            ?CONN_ID:64/big,  % Make sure the client reads tracker response
+            1:32/big,               % This is the action flag
             TransactionID:32/big,
-            InfoHash:160/bitstring,% The torrent Hash
-            PeerID:160/bitstring,
-            Downloaded:64/big,
-            Left:64/big,
-            Uploaded:64/big,
-            Event:32/big,
+            _InfoHash:160/bitstring, % The torrent Hash
+            _PeerID:160/bitstring,
+            _Downloaded:64/big,
+            _Left:64/big,
+            _Uploaded:64/big,
+            _Event:32/big,
             _PeerIP:32/big,         % Ignored; use IP and Port from Socket
-            Key:32/big,
-            NumWant:32/big,
-            PeerPort:16/big,
-            _Rest/binary >>         % Some clients sent some padding bits
-        ) ->
+            _Key:32/big,
+            _NumWant:32/big,
+            _PeerPort:16/big,
+            _Rest/binary
+        >> ) ->
 
-    Peers = [],
-    PeersBin = << <<IP:32/big,Port:16/big>> || [IP,Port] <- Peers >>,
-    Response = <<1:32/big, TransactionID:32/big, 2160:32/big, 10:32/big, 5:32/big, PeersBin/binary>>,
-    send_response(From, Response);
+    Peers = [], % FIXME - Replace with call to judy-nif-cpp.
+    PeersBin = << <<IP:32/big, Port:16/big>> || [IP,Port] <- Peers >>,
 
-% Matches scrape requests by patternmatching on the 2
-handle(From, <<?CONNECTION_ID:64/big, 2:32/big, TransactionID:32/big, Rest/binary>>) ->
-    error_logger:info_msg("Scrape Request: ~n"),
-    Resp = <<2:32/big, TransactionID:32/big, 1:32/big, 3:32/big, 10:32/big>>;
+    <<
+        1:32/big, TransactionID:32/big, 2160:32/big, 10:32/big, 5:32/big,
+        PeersBin/binary
+    >>;
 
-handle(From, Msg) ->
-    error_logger:info_msg("Something else: ~p~n", [Msg]).
 
-send_response({Socket, IP, Port}, Response) ->
-    % gen_udp:send(Socket, IP, Port, Response).
-    ok.
+% Handle connection requests.
+handle_packet(
+        <<
+            _ConnectionID:64/big,
+            0:32/big,
+            TransactionID:32/big,
+            _Rest/binary
+        >> ) ->
+    <<0:32/big, TransactionID:32/big, ?CONN_ID:64/big>>;
 
-ip_to_int({A,B,C,D}) -> (A*16777216)+(B*65536)+(C*256)+(D).
+
+% Handle scrape requests.
+handle_packet(
+        <<
+            ?CONN_ID:64/big,
+            2:32/big,
+            TransactionID:32/big,
+            _Rest/binary
+        >> ) ->
+    <<2:32/big, TransactionID:32/big, 1:32/big, 3:32/big, 10:32/big>>;
+
+
+% Discard all other packets.
+handle_packet(_Packet) -> ignored.

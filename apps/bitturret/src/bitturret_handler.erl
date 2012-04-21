@@ -1,66 +1,91 @@
--module(bitturret_handler).
--behavior(gen_server).
+-module (bitturret_handler).
 
-% gen_server callbacks
--export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
-         code_change/3]).
+% Packet buffer length.
+-define(BUFLEN, 256).
 
-% Public API
--export([]).
+% OTP supervisor callbacks.
+-behaviour (supervisor).
+-export ([start_link/0, init/1]).
 
--record(state, { socket }).
+% Internal, spawnable API.
+-export ([loop_buffer/2, loop_accept/2, handle/1]).
 
-%% ===================================================================
-%% gen_server callbacks
-%% ===================================================================
 
+
+% OTP supervisor boilerplate.
+start_link() ->
+  supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+
+
+% OTP supervisor boilerplate.
 init([]) ->
-    {ok, Port}   = application:get_env(port),
-    {ok, Socket} = gen_udp:open(Port, [binary, {ip, {127,0,0,1}}, {active, once}]),
-    initialize_workers(0),
-    { ok, #state{ socket = Socket } }.
+    PortNo   = bitturret_config:get(port),
+    BindAddr = bitturret_config:get(bind_addr),
 
-handle_call( _Msg, _From, State ) ->
-    { reply, ok, State }.
+    % Open the socket itself.
+    SocketOpts   = [
+        binary,
+        {ip, BindAddr},
+        {active, true},
+        {recbuf, 512},
+        {read_packets, 16}
+    ],
+    Socket = gen_udp:open(PortNo, SocketOpts),
 
-handle_cast( stop, State ) ->
-    { stop, normal, State };
+    % Start the buffer process, spawn the acceptor itself.
+    BufferPid   = spawn(?MODULE, loop_buffer, [0, []]),
+    AcceptorPid = spawn(?MODULE, loop_accept, [Socket, BufferPid]),
+    register(acceptor, AcceptorPid),
 
-handle_cast( _Msg, State ) ->
-    { stop, normal, State }.
-
-code_change(_OldVsn, State, _Extra) ->
-    { ok, State }.
-
-handle_info( {udp, Socket, IP = {_,_,Shard,_}, Port, Msg}, State ) ->
-    erlang:list_to_atom(integer_to_list(Shard)) ! [{Socket, IP, Port}, Msg],
-    loop(State#state.socket, 0),
-    { noreply, State }.
-
-terminate( _Reason, _State ) ->
-    whatever.
-
-%% ===================================================================
-%% Public API
-%% ===================================================================
-
-loop(Socket, Count) ->
-    case (Count rem 100000) of
-        0 -> error_logger:info_msg("Count: ~p~n", [Count]);
-        _ -> ignore
-    end,
-
-    {ok, {IP = {_,_,Shard,_}, Port, Msg}} = gen_udp:recv(Socket, 0),
-    erlang:list_to_atom(integer_to_list(Shard)) ! [{Socket, IP, Port}, Msg],
-    loop(Socket, Count + 1).
-
-initialize_workers(256) -> ok;
-
-initialize_workers(Count) ->
-    Pid  = spawn( bitturret_worker, loop, [] ),
-    Name = erlang:list_to_atom(integer_to_list(Count)),
-    register(Name, Pid),
-    initialize_workers( Count + 1 ).
+    % No child processes for the supervisor.
+    ignore.
 
 
 
+% Attempt to accept new packets as fast as possible.
+loop_accept(Socket, BufferPid) ->
+    receive
+        % Handle reported errors.
+        Error = {error, _} ->
+            gen_udp:close(Socket),
+            error_logger:error_message("~p", [Error]);
+
+        Message ->
+            % Buffer messages first, continue accepting.
+            BufferPid ! Message,
+            loop_accept(Socket, BufferPid)
+    end.
+
+
+% Flush message buffer in case full.
+loop_buffer(?BUFLEN, Buffer) ->
+    flush_buffer(Buffer),
+    loop_buffer(0, []);
+
+
+% Add new messages to a non-full buffer.
+loop_buffer(BufferLength, Buffer) ->
+    receive
+        % Prepend for performance.
+        Message -> loop_buffer(1 + BufferLength, [Message|Buffer])
+    after
+        100 ->
+            % Flush on timeout.
+            flush_buffer(Buffer),
+            loop_buffer(0, [])
+    end.
+
+
+% Handle all messages in the buffer. Immediately returns.
+flush_buffer(Buffer) ->
+    spawn(?MODULE, handle, [Buffer]).
+
+
+% For every received message, make a new worker process handle it.
+handle(Messages) ->
+    lists:foreach(fun dispatch_worker/1, Messages).
+
+
+% Dispatch a message to a new worker process.
+dispatch_worker(Message) ->
+    spawn(bitturret_worker, handle, Message).
