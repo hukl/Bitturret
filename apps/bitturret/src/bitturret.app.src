@@ -43,7 +43,9 @@
     % The values specified here can be overridden by values in a system
     % configuration file.
     {env, [
-        % FIXME - Replace with proper port.
-        {port, 6969}
+        % Port to receive packets on.
+        {port, 6969},
+        % Address to listen on.
+        {bind_addr, {127,0,0,1}}
     ]}
 ]}.
