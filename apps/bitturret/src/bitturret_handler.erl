@@ -23,7 +23,7 @@ init([]) ->
     BindAddr = bitturret_config:get(bind_addr),
 
     % Open the socket itself.
-    SocketOpts   = [
+    SocketOpts = [
         binary,
         {ip, BindAddr},
         {active, true},
