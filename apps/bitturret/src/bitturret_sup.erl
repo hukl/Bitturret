@@ -23,7 +23,9 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
-    Children = [?CHILD(bitturret_handler, supervisor)],
+    io:format("bitturret_sup:init/1~n"),
+
+    Children = [?CHILD(bitturret_handler_bridge, supervisor)],
 
     RestartStrategy = {one_for_one, 0, 1},
 

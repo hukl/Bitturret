@@ -7,13 +7,14 @@
 
 
 % Pre-match on udp messages.
-handle({udp, Socket, FromIP, InPortNo, Packet}) ->
-    Response = handle_packet(Packet),
-    gen_udp:send(Socket, FromIP, InPortNo, Response);
+handle({udp, _Socket, _FromIP, _InPortNo, Packet}) ->
+    _Response = handle_packet(Packet);
+    % gen_udp:send(Socket, FromIP, InPortNo, Response);
 
 
 % Handle errors bubbling up.
-handle(Error = {error, _}) -> ignored;
+handle(Err = {error, _}) ->
+    io:format("~p~n", [Err]);
     % FIXME - Proper error handling required!
 
 

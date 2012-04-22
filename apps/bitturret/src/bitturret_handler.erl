@@ -1,44 +1,51 @@
 -module (bitturret_handler).
-
+-export ([start/0, loop_buffer/2, loop_accept/2, handle/1]).
+-export ([stats_loop/1,  print_stats/0]).
 % Packet buffer length.
--define(BUFLEN, 256).
-
-% OTP supervisor callbacks.
--behaviour (supervisor).
--export ([start_link/0, init/1]).
-
-% Internal, spawnable API.
--export ([loop_buffer/2, loop_accept/2, handle/1]).
+-define (BUFLEN, 256).
 
 
-
-% OTP supervisor boilerplate.
-start_link() ->
-  supervisor:start_link({local, ?MODULE}, ?MODULE, []).
-
-
-% OTP supervisor boilerplate.
-init([]) ->
+% OTP boilerplate.
+start() ->
     PortNo   = bitturret_config:get(port),
     BindAddr = bitturret_config:get(bind_addr),
+
+    stats_debug(),
 
     % Open the socket itself.
     SocketOpts = [
         binary,
         {ip, BindAddr},
-        {active, true},
-        {recbuf, 512},
-        {read_packets, 16}
+        {active, true}
+        % {recbuf, 512},
+        % {read_packets, 16}
     ],
     {ok, Socket} = gen_udp:open(PortNo, SocketOpts),
 
     % Start the buffer process, spawn the acceptor itself.
-    BufferPid   = spawn(?MODULE, loop_buffer, [0, []]),
-    AcceptorPid = spawn(?MODULE, loop_accept, [Socket, BufferPid]),
+    BufferPid = spawn_link(?MODULE, loop_buffer, [0, []]),
 
-    % No child processes for the supervisor.
-    ignore.
+    loop_accept(Socket, BufferPid).
 
+
+
+stats_debug() ->
+    StatsPid = spawn(?MODULE, stats_loop, [0]),
+    register(stats, StatsPid),
+    timer:apply_interval(1000, ?MODULE, print_stats, []).
+
+
+print_stats() -> stats ! flush.
+
+
+stats_loop(Overall0) ->
+    receive
+        flush ->
+            io:format("~p~n", [Overall0]),
+            stats_loop(0);
+        NumPackets ->
+            stats_loop(Overall0 + NumPackets)
+    end.
 
 
 % Attempt to accept new packets as fast as possible.
@@ -47,7 +54,7 @@ loop_accept(Socket, BufferPid) ->
         Message ->
             % Buffer messages first, continue accepting.
             BufferPid ! Message,
-            loop_accept(Socket, BufferPid)
+            ?MODULE:loop_accept(Socket, BufferPid)
     end.
 
 
@@ -61,9 +68,10 @@ loop_buffer(?BUFLEN, Buffer) ->
 loop_buffer(BufferLength, Buffer) ->
     receive
         % Prepend for performance.
-        Message -> loop_buffer(1 + BufferLength, [Message|Buffer])
+        Message ->
+            loop_buffer(1 + BufferLength, [Message|Buffer])
     after
-        100 ->
+        50 ->
             % Flush on timeout.
             flush_buffer(Buffer),
             loop_buffer(0, [])
@@ -77,6 +85,7 @@ flush_buffer(Buffer) ->
 
 % For every received message, make a new worker process handle it.
 handle(Messages) ->
+    stats ! length(Messages),
     lists:foreach(fun dispatch_worker/1, Messages).
 
 
