@@ -30,7 +30,7 @@ init([]) ->
         {recbuf, 512},
         {read_packets, 16}
     ],
-    Socket = gen_udp:open(PortNo, SocketOpts),
+    {ok, Socket} = gen_udp:open(PortNo, SocketOpts),
 
     % Start the buffer process, spawn the acceptor itself.
     BufferPid   = spawn(?MODULE, loop_buffer, [0, []]),
@@ -88,4 +88,4 @@ handle(Messages) ->
 
 % Dispatch a message to a new worker process.
 dispatch_worker(Message) ->
-    spawn(bitturret_worker, handle, Message).
+    spawn(bitturret_worker, handle, [Message]).
