@@ -13,9 +13,8 @@ handle({udp, Socket, FromIP, InPortNo, Packet}) ->
 
 
 % Handle errors bubbling up.
-handle(Error = {error, _}) ->
+handle(Error = {error, _}) -> ignored;
     % FIXME - Proper error handling required!
-    acceptor ! Error;
 
 
 % Ignore any other message.

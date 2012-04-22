@@ -35,7 +35,6 @@ init([]) ->
     % Start the buffer process, spawn the acceptor itself.
     BufferPid   = spawn(?MODULE, loop_buffer, [0, []]),
     AcceptorPid = spawn(?MODULE, loop_accept, [Socket, BufferPid]),
-    register(acceptor, AcceptorPid),
 
     % No child processes for the supervisor.
     ignore.
@@ -45,11 +44,6 @@ init([]) ->
 % Attempt to accept new packets as fast as possible.
 loop_accept(Socket, BufferPid) ->
     receive
-        % Handle reported errors.
-        Error = {error, _} ->
-            gen_udp:close(Socket),
-            error_logger:error_message("~p", [Error]);
-
         Message ->
             % Buffer messages first, continue accepting.
             BufferPid ! Message,
