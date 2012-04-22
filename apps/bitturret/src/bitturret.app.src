@@ -23,8 +23,7 @@
     % systools uses this list to generate correct boot scripts.
     {applications, [
         kernel,
-        stdlib,
-        sasl
+        stdlib
     ]},
 
     % The application controller will automatically load any included applications
