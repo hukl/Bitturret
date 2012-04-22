@@ -19,7 +19,7 @@ start(LocalIp, LocalPort, RemoteIp, RemotePort, PacketsPerSec) ->
 loop_send(Socket, RemoteIp, RemotePort, PacketsPerSec) ->
     {Dur, _} = timer:tc(fun() ->
         times(PacketsPerSec, fun() ->
-            gen_udp:send(Socket, RemoteIp, RemotePort, ?MSG)
+            ok = gen_udp:send(Socket, RemoteIp, RemotePort, ?MSG)
         end)
     end),
     SleepDur = erlang:trunc(1000 - (Dur / 1000)),
