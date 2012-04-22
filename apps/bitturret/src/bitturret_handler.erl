@@ -12,6 +12,8 @@ start() ->
 
     stats_debug(),
 
+    BufferPid = spawn_link(?MODULE, loop_buffer, [0, []]),
+
     % Open the socket itself.
     SocketOpts = [
         binary,
@@ -21,9 +23,6 @@ start() ->
         % {read_packets, 16}
     ],
     {ok, Socket} = gen_udp:open(PortNo, SocketOpts),
-
-    % Start the buffer process, spawn the acceptor itself.
-    BufferPid = spawn_link(?MODULE, loop_buffer, [0, []]),
 
     loop_accept(Socket, BufferPid).
 
@@ -46,6 +45,7 @@ stats_loop(Overall0) ->
         NumPackets ->
             stats_loop(Overall0 + NumPackets)
     end.
+
 
 
 % Attempt to accept new packets as fast as possible.
