@@ -1,4 +1,4 @@
--module(bitturret_handler).
+-module(bitturret_dispatcher).
 -behavior(gen_server).
 
 % Managment API
@@ -30,20 +30,8 @@ stop() -> gen_server:cast(?MODULE, stop).
 %% ===================================================================
 
 init([]) ->
-    {ok, Port} = application:get_env(port),
-    {ok, IP}   = application:get_env(ip),
-
-    Options = [
-        binary,
-        {ip, IP},
-        {active, true},
-        {read_packets, 16},
-        {recbuf, 32 * 1024}
-    ],
-
-    {ok, Socket} = gen_udp:open(Port, Options),
-
-    {ok, #state{ socket = Socket }}.
+    %initialize_workers(0),
+    {ok, []}.
 
 handle_call( _Msg, _From, State ) ->
     { reply, ok, State }.
@@ -58,9 +46,20 @@ code_change(_OldVsn, State, _Extra) ->
     { ok, State }.
 
 handle_info( Msg, State ) ->
-    bitturret_dispatcher ! Msg,
     { noreply, State }.
 
 terminate( _Reason, _State ) ->
     whatever.
+
+%% ===================================================================
+%% Public API
+%% ===================================================================
+
+initialize_workers(256) -> ok;
+
+initialize_workers(Count) ->
+    Pid  = spawn( bitturret_worker, loop, [] ),
+    Name = erlang:list_to_atom(integer_to_list(Count)),
+    register(Name, Pid),
+    initialize_workers( Count + 1 ).
 
