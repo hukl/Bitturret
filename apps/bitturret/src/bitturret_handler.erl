@@ -24,6 +24,8 @@ start() ->
     ],
     {ok, Socket} = gen_udp:open(PortNo, SocketOpts),
 
+    ets:new(hashlist,[set,named_table,public]),
+
     loop_accept(Socket, BufferPid).
 
 
@@ -31,7 +33,7 @@ start() ->
 stats_debug() ->
     StatsPid = spawn(?MODULE, stats_loop, [0]),
     register(stats, StatsPid),
-    timer:apply_interval(1000, ?MODULE, print_stats, []).
+    timer:apply_interval(1000000, ?MODULE, print_stats, []).
 
 
 print_stats() -> stats ! flush.
